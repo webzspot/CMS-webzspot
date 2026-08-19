@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Dark theme.
+   The palette is remapped rather than restyling every component: the slate
+   scale is inverted (50 = darkest surface, 900 = brightest text), `white`
+   becomes the panel colour, and indigo is repointed at cyan for the accent.
+   Existing utilities like bg-white / text-slate-900 keep working and simply
+   resolve to dark values. */
+@theme {
+  /* Surfaces */
+  --color-white: #0f1216;
+  --color-slate-50: #08090b;
+  --color-slate-100: #191d23;
+  --color-slate-200: #272d35;
+  --color-slate-300: #3a424d;
+
+  /* Text, from dimmest to brightest */
+  --color-slate-400: #78828f;
+  --color-slate-500: #98a2b0;
+  --color-slate-600: #b6bec9;
+  --color-slate-700: #ccd3dc;
+  --color-slate-800: #e3e8ee;
+  --color-slate-900: #f5f8fa;
+  --color-slate-950: #ffffff;
+
+  /* Accent */
+  --color-indigo-50: #0c2a30;
+  --color-indigo-100: #10373f;
+  --color-indigo-200: #1a5361;
+  --color-indigo-300: #21707f;
+  --color-indigo-500: #22d3ee;
+  --color-indigo-600: #22d3ee;
+  --color-indigo-700: #67e8f9;
+
+  /* Status tints */
+  --color-emerald-50: #072a1e;
+  --color-emerald-600: #34d399;
+  --color-emerald-700: #6ee7b7;
+
+  --color-amber-50: #2b2007;
+  --color-amber-700: #fbbf24;
+
+  --color-red-50: #2b1215;
+  --color-red-100: #3d1a1e;
+  --color-red-200: #5a2229;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #ef4444;
+  --color-red-700: #dc2626;
+}
+
+body {
+  background-color: var(--color-slate-50);
+  color: var(--color-slate-800);
+}
+
+/* Fields sit slightly above the panel they are on, as in the design */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background-color: var(--color-slate-100);
+}
+
+::placeholder {
+  color: var(--color-slate-400);
+}
+
+/* Native dropdown list follows the dark theme */
+select option {
+  background-color: var(--color-slate-100);
+  color: var(--color-slate-800);
+}
