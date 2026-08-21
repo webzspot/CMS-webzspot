@@ -4,14 +4,7 @@ import { getFormFields } from "../api/formFieldApi";
 import { getSubmissions, deleteSubmission } from "../api/submissionApi";
 import { getErrorMessage, getErrorStatus } from "../api/axios";
 import ConfirmDialog from "./ConfirmDialog";
-
-const formatValue = (value) => {
-  if (value === undefined || value === null || value === "") return "—";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-};
+import RecordCell from "./RecordCell";
 
 const formatWhen = (value) =>
   value
@@ -33,7 +26,24 @@ const columnsFromSubmissions = (submissions) => {
       if (!keys.includes(key)) keys.push(key);
     });
   });
-  return keys.map((key) => ({ fieldId: key, name: key, label: key }));
+  const columns = keys.map((key) => ({ fieldId: key, name: key, label: key }));
+
+  // Uploads are not in data, so add a column per field that has media
+  const seen = new Set();
+  submissions.forEach((submission) => {
+    (submission.media || []).forEach((item) => {
+      if (seen.has(item.fieldId)) return;
+      seen.add(item.fieldId);
+      columns.push({
+        fieldId: item.fieldId,
+        name: item.fieldId,
+        label: item.type === "IMAGE" ? "Image" : "File",
+        type: item.type || "FILE",
+      });
+    });
+  });
+
+  return columns;
 };
 
 const SubmissionDialog = ({ submission, fields, onClose }) => (
@@ -61,7 +71,12 @@ const SubmissionDialog = ({ submission, fields, onClose }) => (
               {field.label}
             </dt>
             <dd className="mt-1 text-sm break-words text-slate-800">
-              {formatValue(submission.data?.[field.name])}
+              <RecordCell
+                field={field}
+                record={submission}
+                dataKey="name"
+                size="detail"
+              />
             </dd>
           </div>
         ))}
@@ -210,7 +225,11 @@ const SubmissionsPanel = ({ formId, withFieldLabels = false, onCountChange }) =>
                       key={field.fieldId}
                       className="max-w-xs truncate px-5 py-3 text-slate-800"
                     >
-                      {formatValue(submission.data?.[field.name])}
+                      <RecordCell
+                        field={field}
+                        record={submission}
+                        dataKey="name"
+                      />
                     </td>
                   ))}
                   <td className="px-5 py-3">

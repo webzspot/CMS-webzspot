@@ -2,7 +2,13 @@ import { useState } from "react";
 import { FiX, FiLoader } from "react-icons/fi";
 import { createRecord, updateRecord } from "../api/recordApi";
 import { getErrorMessage } from "../api/axios";
-import { buildData, toFormValues, validateRecord } from "../utils/recordFields";
+import ImageCropDialog from "./ImageCropDialog";
+import {
+  splitRecordValues,
+  toFormValues,
+  validateRecord,
+  isFileField,
+} from "../utils/recordFields";
 
 const inputClass =
   "w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
@@ -15,10 +21,25 @@ const RecordForm = ({ collectionId, fields, record, onClose, onSaved }) => {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  // { slug, file } while an image is being cropped
+  const [cropping, setCropping] = useState(null);
 
   const setValue = (slug, value) => {
     setValues((prev) => ({ ...prev, [slug]: value }));
     setErrors((prev) => ({ ...prev, [slug]: "" }));
+  };
+
+  // Images go through the crop step first; other files are taken as picked.
+  const handleFilePicked = (field, file) => {
+    if (!file) {
+      setValue(field.slug, "");
+      return;
+    }
+    if (field.type === "IMAGE" && file.type.startsWith("image/")) {
+      setCropping({ slug: field.slug, file });
+      return;
+    }
+    setValue(field.slug, file);
   };
 
   const handleSubmit = async (event) => {
@@ -31,10 +52,10 @@ const RecordForm = ({ collectionId, fields, record, onClose, onSaved }) => {
 
     setSaving(true);
     try {
-      const data = buildData(fields, values);
+      const { data, files } = splitRecordValues(fields, values);
       const result = isEdit
-        ? await updateRecord(record.recordId, data)
-        : await createRecord(collectionId, data);
+        ? await updateRecord(record.recordId, data, files)
+        : await createRecord(collectionId, data, files);
       onSaved(result.message || "Record saved");
     } catch (error) {
       setFormError(getErrorMessage(error));
@@ -47,6 +68,38 @@ const RecordForm = ({ collectionId, fields, record, onClose, onSaved }) => {
     const value = values[field.slug];
     const onChange = (e) => setValue(field.slug, e.target.value);
 
+    if (isFileField(field.type)) {
+      const picked = value instanceof File;
+      return (
+        <div>
+          <input
+            type="file"
+            accept={field.type === "IMAGE" ? "image/*" : undefined}
+            onChange={(e) => handleFilePicked(field, e.target.files?.[0])}
+            className="w-full cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none transition file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 focus:border-indigo-500"
+          />
+          {/* Show what is already stored so editing another field is safe */}
+          {!picked && value && (
+            <p className="mt-1 truncate text-xs text-slate-400">
+              Current: {String(value).split("/").pop()}
+            </p>
+          )}
+          {picked && (
+            // Size is shown so an empty source file is obvious before upload
+            <p
+              className={`mt-1 truncate text-xs ${
+                value.size === 0 ? "text-red-600" : "text-emerald-600"
+              }`}
+            >
+              {value.name} ·{" "}
+              {value.size === 0
+                ? "0 bytes — this file is empty"
+                : `${(value.size / 1024).toFixed(0)} KB ready to upload`}
+            </p>
+          )}
+        </div>
+      );
+    }
     if (field.type === "BOOLEAN") {
       return (
         <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -147,6 +200,17 @@ const RecordForm = ({ collectionId, fields, record, onClose, onSaved }) => {
           </div>
         </div>
       </form>
+
+      {cropping && (
+        <ImageCropDialog
+          file={cropping.file}
+          onCancel={() => setCropping(null)}
+          onCropped={(file) => {
+            setValue(cropping.slug, file);
+            setCropping(null);
+          }}
+        />
+      )}
     </div>
   );
 };

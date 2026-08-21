@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell, { Alert, TextField, SubmitButton } from "./AuthShell";
-import { registerAdmin } from "../api/authApi";
-import { getErrorMessage, getErrorStatus } from "../api/axios";
+import { registerAdmin, resendOtp } from "../api/authApi";
+import { getErrorData, getErrorMessage, getErrorStatus } from "../api/axios";
 
 const EMPTY = {
   name: "",
@@ -38,6 +38,36 @@ const Register = () => {
     return Object.keys(next).length === 0;
   };
 
+  // The email is taken. If that account was never verified, send them to
+  // finish the OTP rather than blocking them; if it is verified, they should
+  // sign in instead. resend-otp is what tells the two apart.
+  const handleExistingEmail = async (email) => {
+    try {
+      const data = await resendOtp(email);
+      navigate("/auth/verify-email", {
+        state: {
+          email,
+          notice:
+            data.message ||
+            "This email is already registered but not verified. We've sent a new code.",
+        },
+      });
+    } catch (err) {
+      const { retryAfter } = getErrorData(err);
+      if (retryAfter) {
+        // A code went out moments ago, so the account is still unverified
+        navigate("/auth/verify-email", {
+          state: { email, retryAfter, notice: getErrorMessage(err) },
+        });
+        return;
+      }
+      setErrors((prev) => ({
+        ...prev,
+        email: "This email is already registered. Sign in instead.",
+      }));
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validate()) return;
@@ -53,12 +83,11 @@ const Register = () => {
       });
       navigate("/auth/verify-email", { state: { email: form.email.trim() } });
     } catch (err) {
-      const message = getErrorMessage(err);
       if (getErrorStatus(err) === 409) {
-        setErrors((prev) => ({ ...prev, email: message }));
-      } else {
-        setFormError(message);
+        await handleExistingEmail(form.email.trim());
+        return;
       }
+      setFormError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

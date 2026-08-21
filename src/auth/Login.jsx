@@ -31,15 +31,19 @@ const Login = () => {
       
       navigate(data.redirectUrl || "/");
     } catch (err) {
-       console.log(err)
-      // 403 "Please verify your email first" -> send them to the OTP screen
+      // Unverified account: finish OTP verification, then straight to the
+      // dashboard. A fresh code is requested on the verify screen.
       if (getErrorStatus(err) === 403 && /verify/i.test(getErrorMessage(err))) {
-        navigate("/auth/verify-email", { state: { email: form.email } });
+        navigate("/auth/verify-email", {
+          state: {
+            email: form.email.trim(),
+            sendOtp: true,
+            notice: "Verify your email to finish signing in.",
+          },
+        });
         return;
       }
       setError(getErrorMessage(err));
-     
-
     } finally {
       setLoading(false);
     }

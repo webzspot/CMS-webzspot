@@ -23,7 +23,7 @@ import { getErrorMessage } from "../api/axios";
 import StatusBadge from "../components/StatusBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import RecordForm from "../components/RecordForm";
-import { formatCell } from "../utils/recordFields";
+import RecordCell from "../components/RecordCell";
 
 const CollectionDetail = () => {
   const { projectId, collectionId } = useParams();
@@ -251,7 +251,7 @@ const CollectionDetail = () => {
                           key={field.fieldId}
                           className="max-w-xs truncate px-5 py-3 text-slate-800"
                         >
-                          {formatCell(field, record.data?.[field.slug])}
+                          <RecordCell field={field} record={record} />
                         </td>
                       ))}
                       <td className="px-5 py-3">

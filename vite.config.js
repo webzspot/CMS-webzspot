@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://cms-backend-jrio.onrender.com',
+        target: 'https://cms-backend-nw6j.onrender.com',
         changeOrigin: true,
       },
     },

@@ -24,14 +24,18 @@ const VerifyEmail = () => {
   const [email] = useState(
     () => location.state?.email || sessionStorage.getItem("cmsx_pending_email"),
   );
+  const [sendOtpOnArrival] = useState(() => Boolean(location.state?.sendOtp));
 
   const inputsRef = useRef([]);
+  const requestedRef = useRef(false);
   const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] = useState(location.state?.notice || "");
   const [loading, setLoading] = useState(false);
   const [expiresIn, setExpiresIn] = useState(OTP_TTL);
-  const [resendIn, setResendIn] = useState(RESEND_WAIT);
+  const [resendIn, setResendIn] = useState(
+    location.state?.retryAfter || RESEND_WAIT,
+  );
 
   useEffect(() => {
     if (email) sessionStorage.setItem("cmsx_pending_email", email);
@@ -44,6 +48,23 @@ const VerifyEmail = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Arriving from login (or a repeat registration) means no fresh code has
+  // been sent yet, so ask for one. The ref keeps it to a single request.
+  useEffect(() => {
+    if (!email || !sendOtpOnArrival || requestedRef.current) return;
+    requestedRef.current = true;
+    resendOtp(email)
+      .then((data) =>
+        setSuccess(data.message || "We've sent a new code to your email."),
+      )
+      .catch((err) => {
+        // 429 means one was sent moments ago; keep its countdown
+        const { retryAfter } = getErrorData(err);
+        if (retryAfter) setResendIn(retryAfter);
+        else setError(getErrorMessage(err));
+      });
+  }, [email, sendOtpOnArrival]);
 
   if (!email) return <Navigate to="/auth/register" replace />;
 
