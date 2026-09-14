@@ -26,6 +26,15 @@ export const publicCollection = (projectSlug, collectionSlug) => {
   };
 };
 
+export const publicRecord = (projectSlug, collectionSlug, recordId) => {
+  if (!projectSlug || !collectionSlug || !recordId) return null;
+  return {
+    method: "GET",
+    path: publicPath(`/${projectSlug}/${collectionSlug}/${recordId}`),
+    url: `${origin}/public/${projectSlug}/${collectionSlug}/${recordId}`,
+  };
+};
+
 export const publicFormSubmit = (projectSlug, formSlug) => {
   if (!projectSlug || !formSlug) return null;
   return {

@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { FiX, FiLoader } from "react-icons/fi";
+import { FiX, FiLoader, FiInfo } from "react-icons/fi";
 import { createPlan, updatePlan } from "../api/planApi";
 import { getErrorMessage, getErrorStatus } from "../api/axios";
+import { RESET_CYCLE } from "../utils/planFormat";
+
+// FREE plans have no cycle and no price. PAID plans must have both.
+const CYCLES_FOR = { FREE: ["NONE"], PAID: ["MONTHLY", "YEARLY"] };
 
 const NUMBER_FIELDS = [
-  "monthlyPrice",
-  "yearlyPrice",
+  "price",
+  "planLevel",
   "projectLimit",
   "collectionLimit",
   "apiKeyLimit",
@@ -16,10 +20,12 @@ const NUMBER_FIELDS = [
   "displayOrder",
 ];
 
+// Everything the create endpoint refuses to work without.
 const REQUIRED_FIELDS = [
   "name",
-  "monthlyPrice",
-  "yearlyPrice",
+  "type",
+  "billingCycle",
+  "price",
   "projectLimit",
   "collectionLimit",
   "apiKeyLimit",
@@ -29,11 +35,6 @@ const REQUIRED_FIELDS = [
   "writeRequestsLimit",
   "analytics",
   "emailSupport",
-];
-
-const PRICE_FIELDS = [
-  { key: "monthlyPrice", label: "Monthly Price (₹)" },
-  { key: "yearlyPrice", label: "Yearly Price (₹)" },
 ];
 
 const LIMIT_FIELDS = [
@@ -46,8 +47,8 @@ const LIMIT_FIELDS = [
   { key: "writeRequestsLimit", label: "WRITE Requests Limit" },
 ];
 
-const ANALYTICS_OPTIONS = ["Basic", "Advanced"];
-const SUPPORT_OPTIONS = ["Community", "Email", "Standard", "Priority"];
+const ANALYTICS_OPTIONS = ["BASIC", "ADVANCED"];
+const SUPPORT_OPTIONS = ["COMMUNITY", "EMAIL", "PRIORITY"];
 
 // Keep whatever value the API already stored, even if it is not in our list.
 const withCurrent = (options, value) =>
@@ -55,8 +56,10 @@ const withCurrent = (options, value) =>
 
 const toFormValues = (plan) => ({
   name: plan?.name ?? "",
-  monthlyPrice: plan?.monthlyPrice ?? "",
-  yearlyPrice: plan?.yearlyPrice ?? "",
+  type: plan?.type ?? "PAID",
+  billingCycle: plan?.billingCycle ?? "MONTHLY",
+  price: plan?.price ?? "",
+  planLevel: plan?.planLevel ?? "",
   projectLimit: plan?.projectLimit ?? "",
   collectionLimit: plan?.collectionLimit ?? "",
   apiKeyLimit: plan?.apiKeyLimit ?? "",
@@ -66,9 +69,9 @@ const toFormValues = (plan) => ({
   writeRequestsLimit: plan?.writeRequestsLimit ?? "",
   customDomain: plan?.customDomain ?? false,
   mediaUpload: plan?.mediaUpload ?? false,
-  analytics: plan?.analytics ?? "Basic",
-  emailSupport: plan?.emailSupport ?? "Standard",
-  displayOrder: plan?.displayOrder ?? "",
+  analytics: plan?.analytics ?? "BASIC",
+  emailSupport: plan?.emailSupport ?? "COMMUNITY",
+  displayOrder: plan?.displayOrder ?? 0,
   isPopular: plan?.isPopular ?? false,
   isActive: plan?.isActive ?? true,
 });
@@ -111,8 +114,13 @@ const Field = ({ label, error, hint, children }) => (
   </div>
 );
 
+// Scrolling the page with the cursor over a focused number input edits its
+// value in Chrome. Dropping focus on wheel lets the page scroll normally and
+// leaves the number alone.
+const blurOnWheel = (event) => event.currentTarget.blur();
+
 const inputClass = (hasError) =>
-  `w-full rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-indigo-100 ${
+  `w-full rounded-lg border px-3 py-2 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400 ${
     hasError
       ? "border-red-400 focus:border-red-500"
       : "border-slate-200 focus:border-indigo-500"
@@ -126,9 +134,23 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const isFree = values.type === "FREE";
+
   const setValue = (key, value) => {
     setValues((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  // Switching the type drags the cycle and price with it, so the form can never
+  // send a combination the backend rejects.
+  const setType = (type) => {
+    setValues((prev) => ({
+      ...prev,
+      type,
+      billingCycle: type === "FREE" ? "NONE" : "MONTHLY",
+      price: type === "FREE" ? 0 : "",
+    }));
+    setErrors({});
   };
 
   const validate = () => {
@@ -146,6 +168,20 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
       }
     });
 
+    // Mirrors the backend rules so the admin sees them before submitting.
+    const price = Number(values.price);
+    if (isFree && price !== 0) {
+      nextErrors.price = "A free plan must be priced at 0";
+    }
+    if (!isFree && !nextErrors.price && price <= 0) {
+      nextErrors.price = "A paid plan must cost more than 0";
+    }
+    if (!CYCLES_FOR[values.type]?.includes(values.billingCycle)) {
+      nextErrors.billingCycle = isFree
+        ? "A free plan must use NONE"
+        : "Choose monthly or yearly";
+    }
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -161,6 +197,14 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
       payload[key] = castValue(key, values[key]);
     });
 
+    // type, cycle and price only make sense together
+    if (isEdit && (payload.type || payload.billingCycle || payload.price)) {
+      payload.type = values.type;
+      payload.billingCycle = values.billingCycle;
+      payload.price = Number(values.price);
+    }
+
+    if (payload.name) payload.name = payload.name.trim();
     return payload;
   };
 
@@ -181,10 +225,10 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
       const data = isEdit
         ? await updatePlan(plan.planId, payload)
         : await createPlan(payload);
-      onSaved(data.message || "Plan saved successfully");
+      onSaved(data.message || "Plan saved successfully", data.plan);
     } catch (error) {
       const message = getErrorMessage(error);
-      // 409 = duplicate plan name, show it next to the name field
+      // 409 = an active plan with this name + type + cycle already exists
       if (getErrorStatus(error) === 409) {
         setErrors((prev) => ({ ...prev, name: message }));
       } else {
@@ -226,32 +270,107 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
             <h3 className="mb-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
               Basic Details
             </h3>
-            <div className="grid gap-4 sm:grid-cols-3">
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Plan Name" error={errors.name}>
                 <input
                   type="text"
                   value={values.name}
                   onChange={(e) => setValue("name", e.target.value)}
-                  placeholder="Starter"
+                  placeholder="Professional"
                   className={inputClass(errors.name)}
                 />
               </Field>
-              {PRICE_FIELDS.map((field) => (
-                <Field
-                  key={field.key}
-                  label={field.label}
-                  error={errors[field.key]}
-                >
-                  <input
-                    type="number"
-                    value={values[field.key]}
-                    onChange={(e) => setValue(field.key, e.target.value)}
-                    placeholder="0"
-                    className={inputClass(errors[field.key])}
-                  />
-                </Field>
-              ))}
+
+              <Field label="Type" error={errors.type}>
+                <div className="flex gap-2">
+                  {["FREE", "PAID"].map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setType(option)}
+                      className={`flex-1 rounded-lg border py-2 text-sm font-medium transition ${
+                        values.type === option
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </Field>
             </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <Field
+                label="Billing Cycle"
+                error={errors.billingCycle}
+                hint={isFree ? "Free plans are never billed" : undefined}
+              >
+                <select
+                  value={values.billingCycle}
+                  onChange={(e) => setValue("billingCycle", e.target.value)}
+                  disabled={isFree}
+                  className={inputClass(errors.billingCycle)}
+                >
+                  {CYCLES_FOR[values.type].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field
+                label="Price (₹)"
+                error={errors.price}
+                hint={
+                  isFree
+                    ? "Locked to 0 for free plans"
+                    : "Charged once per billing cycle"
+                }
+              >
+                <input
+                  type="number"
+                  value={values.price}
+                  onChange={(e) => setValue("price", e.target.value)}
+                  onWheel={blurOnWheel}
+                  disabled={isFree}
+                  placeholder="649"
+                  className={inputClass(errors.price)}
+                />
+              </Field>
+
+              <Field
+                label="Plan Level"
+                error={errors.planLevel}
+                hint="Higher level = better plan"
+              >
+                <input
+                  type="number"
+                  value={values.planLevel}
+                  onChange={(e) => setValue("planLevel", e.target.value)}
+                  onWheel={blurOnWheel}
+                  placeholder="1"
+                  className={inputClass(errors.planLevel)}
+                />
+              </Field>
+            </div>
+
+            <p className="mt-2 text-xs text-slate-400">
+              The level ranks plans against each other, so a tenant is only
+              offered plans above their own. Give the monthly and yearly version
+              of the same plan the same level.
+            </p>
+
+            {!isFree && (
+              <p className="mt-3 flex gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                <FiInfo className="mt-0.5 shrink-0" />
+                The Razorpay plan is created by the backend. Changing the price
+                or cycle later replaces it automatically.
+              </p>
+            )}
           </section>
 
           <section>
@@ -260,7 +379,10 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
             </h3>
             <p className="mb-4 text-xs text-slate-400">
               Use <span className="font-medium text-slate-500">-1</span> for
-              unlimited. Storage is in MB (1024 MB = 1 GB).
+              unlimited. Storage is in MB (1024 MB = 1 GB). GET and WRITE
+              allowances reset{" "}
+              <span className="font-medium text-slate-500">{RESET_CYCLE}</span>,
+              whatever the billing cycle.
             </p>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {LIMIT_FIELDS.map((field) => (
@@ -273,6 +395,7 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
                     type="number"
                     value={values[field.key]}
                     onChange={(e) => setValue(field.key, e.target.value)}
+                    onWheel={blurOnWheel}
                     placeholder="0"
                     className={inputClass(errors[field.key])}
                   />
@@ -292,11 +415,13 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
                   onChange={(e) => setValue("analytics", e.target.value)}
                   className={inputClass(errors.analytics)}
                 >
-                  {withCurrent(ANALYTICS_OPTIONS, values.analytics).map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
+                  {withCurrent(ANALYTICS_OPTIONS, values.analytics).map(
+                    (option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ),
+                  )}
                 </select>
               </Field>
               <Field label="Email Support" error={errors.emailSupport}>
@@ -305,11 +430,13 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
                   onChange={(e) => setValue("emailSupport", e.target.value)}
                   className={inputClass(errors.emailSupport)}
                 >
-                  {withCurrent(SUPPORT_OPTIONS, values.emailSupport).map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
+                  {withCurrent(SUPPORT_OPTIONS, values.emailSupport).map(
+                    (option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ),
+                  )}
                 </select>
               </Field>
               <Toggle
@@ -339,7 +466,8 @@ const PlanForm = ({ plan, onClose, onSaved }) => {
                   type="number"
                   value={values.displayOrder}
                   onChange={(e) => setValue("displayOrder", e.target.value)}
-                  placeholder="1"
+                  onWheel={blurOnWheel}
+                  placeholder="0"
                   className={inputClass(errors.displayOrder)}
                 />
               </Field>

@@ -68,6 +68,10 @@ const CollectionDetail = () => {
 
   const isPublished = collection?.status === "PUBLISHED";
 
+  // The table stays readable at three columns; the rest live in the entry view
+  const columns = fields.slice(0, 3);
+  const hiddenCount = Math.max(0, fields.length - columns.length);
+
   // The backend rejects publishing a collection with no fields.
   const togglePublish = async () => {
     setPublishing(true);
@@ -229,7 +233,7 @@ const CollectionDetail = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-left">
-                    {fields.map((field) => (
+                    {columns.map((field) => (
                       <th
                         key={field.fieldId}
                         className="px-5 py-3 font-medium text-slate-500"
@@ -237,6 +241,11 @@ const CollectionDetail = () => {
                         {field.name}
                       </th>
                     ))}
+                    {hiddenCount > 0 && (
+                      <th className="px-5 py-3 font-medium text-slate-400">
+                      
+                      </th>
+                    )}
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
@@ -246,7 +255,7 @@ const CollectionDetail = () => {
                       key={record.recordId}
                       className="border-b border-slate-50 last:border-0"
                     >
-                      {fields.map((field) => (
+                      {columns.map((field) => (
                         <td
                           key={field.fieldId}
                           className="max-w-xs truncate px-5 py-3 text-slate-800"
@@ -254,8 +263,24 @@ const CollectionDetail = () => {
                           <RecordCell field={field} record={record} />
                         </td>
                       ))}
+                      {hiddenCount > 0 && (
+                        <td className="px-5 py-3 text-xs text-slate-400">
+                         +{hiddenCount} more
+                        </td>
+                      )}
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/admin/projects/${projectId}/collections/${collectionId}/records/${record.recordId}`,
+                              )
+                            }
+                            title="View full entry"
+                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50"
+                          >
+                            <FiEye size={14} />
+                          </button>
                           <button
                             onClick={() => setFormFor(record)}
                             title="Edit entry"

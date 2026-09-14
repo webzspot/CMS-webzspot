@@ -7,6 +7,7 @@ import {
   FiImage,
   FiFileText,
   FiBarChart2,
+  FiTerminal,
 } from "react-icons/fi";
 import { getProject } from "../api/projectApi";
 import { getErrorMessage } from "../api/axios";
@@ -18,6 +19,7 @@ const TABS = [
   { to: "media", label: "Media", icon: FiImage },
   { to: "forms", label: "Forms", icon: FiFileText },
   { to: "analytics", label: "Analytics", icon: FiBarChart2 },
+  { to: "api", label: "API", icon: FiTerminal },
 ];
 
 const ProjectDetail = () => {

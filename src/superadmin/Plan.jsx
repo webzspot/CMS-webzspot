@@ -12,6 +12,7 @@ import {
   FiLoader,
   FiLayers,
   FiX,
+  FiCalendar,
 } from "react-icons/fi";
 import { getPlans, updatePlan, deletePlan } from "../api/planApi";
 import { getErrorMessage } from "../api/axios";
@@ -21,15 +22,31 @@ import {
   formatPrice,
   formatStorage,
   LIMIT_ROWS,
+  RESET_CYCLE,
 } from "../utils/planFormat";
 
 const isActivePlan = (plan) => plan.isActive !== false;
+
+// FREE plans carry billingCycle NONE, so they get no /month or /year suffix.
+const cycleSuffix = (billingCycle) =>
+  billingCycle === "MONTHLY"
+    ? "/month"
+    : billingCycle === "YEARLY"
+      ? "/year"
+      : "";
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "inactive", label: "Inactive" },
+];
 
 const Badge = ({ children, tone = "slate" }) => {
   const tones = {
     slate: "bg-slate-100 text-slate-600",
     indigo: "bg-indigo-50 text-indigo-700",
     amber: "bg-amber-50 text-amber-700",
+    emerald: "bg-emerald-50 text-emerald-700",
   };
   return (
     <span
@@ -40,9 +57,9 @@ const Badge = ({ children, tone = "slate" }) => {
   );
 };
 
-const PlanCard = ({ plan, billing, busy, onEdit, onToggleActive, onDelete }) => {
+const PlanCard = ({ plan, busy, onEdit, onToggleActive, onDelete }) => {
   const active = isActivePlan(plan);
-  const price = billing === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+  const isFree = plan.type === "FREE";
 
   return (
     <div
@@ -61,27 +78,47 @@ const PlanCard = ({ plan, billing, busy, onEdit, onToggleActive, onDelete }) => 
                 <FiStar size={11} /> Popular
               </Badge>
             )}
-            {!active && <Badge>Inactive</Badge>}
+            {active ? <Badge tone="emerald">Active</Badge> : <Badge>Inactive</Badge>}
           </div>
         </div>
+
         <div className="flex items-baseline gap-1">
           <span className="text-2xl font-semibold text-slate-900">
-            ₹{formatPrice(price)}
+            {isFree ? "Free" : `₹${formatPrice(plan.price)}`}
           </span>
           <span className="text-sm text-slate-400">
-            /{billing === "monthly" ? "month" : "year"}
+            {cycleSuffix(plan.billingCycle)}
           </span>
         </div>
-        <p className="mt-1 text-xs text-slate-400">
-          Display order {plan.displayOrder ?? "-"}
-        </p>
+
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <Badge>{plan.type}</Badge>
+          <Badge>{plan.billingCycle}</Badge>
+          {plan.planLevel != null && (
+            <Badge tone="indigo">Level {plan.planLevel}</Badge>
+          )}
+          <Badge>Order {plan.displayOrder ?? 0}</Badge>
+        </div>
       </div>
 
       <div className="flex-1 px-5 py-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
+            Limits
+          </p>
+          <Badge>
+            <FiCalendar size={11} /> Resets {RESET_CYCLE}
+          </Badge>
+        </div>
         <dl className="space-y-2">
           {LIMIT_ROWS.map((row) => (
             <div key={row.key} className="flex justify-between text-sm">
-              <dt className="text-slate-500">{row.label}</dt>
+              <dt className="text-slate-500">
+                {row.label}
+                {row.perMonth && (
+                  <span className="text-slate-400"> / month</span>
+                )}
+              </dt>
               <dd className="font-medium text-slate-800">
                 {formatLimit(plan[row.key])}
               </dd>
@@ -98,17 +135,23 @@ const PlanCard = ({ plan, billing, busy, onEdit, onToggleActive, onDelete }) => 
         <div className="mt-4 flex flex-wrap gap-1.5 border-t border-slate-100 pt-4">
           {plan.customDomain && (
             <Badge tone="indigo">
-              <FiCheck size={11} /> Custom Domain Included
+              <FiCheck size={11} /> Custom Domain
             </Badge>
           )}
           {plan.mediaUpload && (
             <Badge tone="indigo">
-              <FiCheck size={11} /> Media Upload Included
+              <FiCheck size={11} /> Media Upload
             </Badge>
           )}
           <Badge>{plan.analytics} Analytics</Badge>
           <Badge>{plan.emailSupport} Support</Badge>
         </div>
+
+        {/* {plan.razorpayPlanId && (
+          <p className="mt-3 truncate font-mono text-xs text-slate-400">
+            {plan.razorpayPlanId}
+          </p>
+        )} */}
       </div>
 
       <div className="flex gap-2 border-t border-slate-100 px-5 py-3">
@@ -144,14 +187,16 @@ const PlanCard = ({ plan, billing, busy, onEdit, onToggleActive, onDelete }) => 
   );
 };
 
-const DeleteDialog = ({ state, busy, onCancel, onConfirm, onDeactivate }) => (
+const DeleteDialog = ({ state, busy, onCancel, onConfirm }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
     <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
       <h3 className="text-lg font-semibold text-slate-900">Delete plan</h3>
       <p className="mt-2 text-sm text-slate-500">
-        Are you sure you want to delete{" "}
-        <span className="font-medium text-slate-800">{state.plan.name}</span>?
-        This action cannot be undone.
+        Delete <span className="font-medium text-slate-800">{state.plan.name}</span>?
+      </p>
+      <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+        If any tenant is subscribed to this plan it is not removed — the backend
+        deactivates it instead so existing subscriptions keep working.
       </p>
 
       {state.error && (
@@ -168,23 +213,13 @@ const DeleteDialog = ({ state, busy, onCancel, onConfirm, onDeactivate }) => (
         >
           Cancel
         </button>
-        {state.error ? (
-          <button
-            onClick={onDeactivate}
-            disabled={busy}
-            className="flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-900 disabled:opacity-60"
-          >
-            {busy && <FiLoader className="animate-spin" />} Deactivate Instead
-          </button>
-        ) : (
-          <button
-            onClick={onConfirm}
-            disabled={busy}
-            className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-red-700 disabled:opacity-60"
-          >
-            {busy && <FiLoader className="animate-spin" />} Delete
-          </button>
-        )}
+        <button
+          onClick={onConfirm}
+          disabled={busy}
+          className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+        >
+          {busy && <FiLoader className="animate-spin" />} Delete
+        </button>
       </div>
     </div>
   </div>
@@ -195,7 +230,7 @@ const Plan = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState(null);
-  const [billing, setBilling] = useState("monthly");
+  const [filter, setFilter] = useState("all");
   const [formPlan, setFormPlan] = useState(null); // null = closed
   const [deleteState, setDeleteState] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -220,10 +255,26 @@ const Plan = () => {
 
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 4000);
+    const timer = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(timer);
   }, [notice]);
 
+  const visible = plans.filter((plan) =>
+    filter === "all"
+      ? true
+      : filter === "active"
+        ? isActivePlan(plan)
+        : !isActivePlan(plan),
+  );
+
+  const countFor = (key) =>
+    key === "all"
+      ? plans.length
+      : plans.filter((plan) =>
+          key === "active" ? isActivePlan(plan) : !isActivePlan(plan),
+        ).length;
+
+  // An edit can come back as a brand new plan when the old one has subscribers.
   const handleSaved = (message) => {
     setFormPlan(null);
     setNotice({ type: "success", text: message });
@@ -245,6 +296,8 @@ const Plan = () => {
     }
   };
 
+  // The backend answers 200 either way: deleted, or deactivated because the
+  // plan is in use. Its message says which one happened.
   const handleDelete = async () => {
     const plan = deleteState.plan;
     setBusyId(plan.planId);
@@ -252,22 +305,6 @@ const Plan = () => {
       const data = await deletePlan(plan.planId);
       setDeleteState(null);
       setNotice({ type: "success", text: data.message || "Plan deleted" });
-      loadPlans();
-    } catch (error) {
-      // Plan in use by a subscription: show the backend message + deactivate option
-      setDeleteState({ plan, error: getErrorMessage(error) });
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const handleDeactivateFromDialog = async () => {
-    const plan = deleteState.plan;
-    setBusyId(plan.planId);
-    try {
-      const data = await updatePlan(plan.planId, { isActive: false });
-      setDeleteState(null);
-      setNotice({ type: "success", text: data.message || "Plan deactivated" });
       loadPlans();
     } catch (error) {
       setDeleteState({ plan, error: getErrorMessage(error) });
@@ -285,23 +322,23 @@ const Plan = () => {
             <p className="mt-1 text-sm text-slate-500">
               {loading
                 ? "Loading plans..."
-                : `${plans.length} plan${plans.length === 1 ? "" : "s"} available`}
+                : `${plans.length} plan${plans.length === 1 ? "" : "s"} · ${countFor("active")} active`}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg border border-slate-200 bg-white p-1">
-              {["monthly", "yearly"].map((option) => (
+              {FILTERS.map((option) => (
                 <button
-                  key={option}
-                  onClick={() => setBilling(option)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition ${
-                    billing === option
+                  key={option.key}
+                  onClick={() => setFilter(option.key)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                    filter === option.key
                       ? "bg-slate-900 text-white"
                       : "text-slate-500 hover:text-slate-800"
                   }`}
                 >
-                  {option}
+                  {option.label}
                 </button>
               ))}
             </div>
@@ -352,32 +389,37 @@ const Plan = () => {
               <p className="text-sm text-red-700">{loadError}</p>
               <button
                 onClick={refreshPlans}
-                className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-red-700"
+                className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
               >
                 Try Again
               </button>
             </div>
-          ) : plans.length === 0 ? (
+          ) : visible.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-300 bg-white p-14 text-center">
               <FiLayers className="mx-auto mb-3 text-slate-300" size={32} />
-              <h3 className="font-medium text-slate-800">No plans yet</h3>
+              <h3 className="font-medium text-slate-800">
+                {plans.length === 0 ? "No plans yet" : `No ${filter} plans`}
+              </h3>
               <p className="mt-1 text-sm text-slate-500">
-                Create your first plan to get started.
+                {plans.length === 0
+                  ? "Create your first plan to get started."
+                  : "Try a different filter."}
               </p>
-              <button
-                onClick={() => setFormPlan({})}
-                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-              >
-                <FiPlus size={16} /> New Plan
-              </button>
+              {plans.length === 0 && (
+                <button
+                  onClick={() => setFormPlan({})}
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                >
+                  <FiPlus size={16} /> New Plan
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {plans.map((plan) => (
+              {visible.map((plan) => (
                 <PlanCard
                   key={plan.planId}
                   plan={plan}
-                  billing={billing}
                   busy={busyId === plan.planId}
                   onEdit={setFormPlan}
                   onToggleActive={handleToggleActive}
@@ -403,7 +445,6 @@ const Plan = () => {
           busy={busyId === deleteState.plan.planId}
           onCancel={() => setDeleteState(null)}
           onConfirm={handleDelete}
-          onDeactivate={handleDeactivateFromDialog}
         />
       )}
     </div>

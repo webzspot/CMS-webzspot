@@ -15,10 +15,12 @@ import ProjectDetail from "./admin/ProjectDetail";
 import CollectionsTab from "./admin/CollectionsTab";
 import ApiKeysTab from "./admin/ApiKeysTab";
 import FormsTab from "./admin/FormsTab";
+import ApiTesterTab from "./admin/ApiTesterTab";
 import FormBuilder from "./admin/FormBuilder";
 import FormSubmissions from "./admin/FormSubmissions";
 import Team from "./admin/Team";
 import CollectionDetail from "./admin/CollectionDetail";
+import RecordDetail from "./admin/RecordDetail";
 import TabPlaceholder from "./components/TabPlaceholder";
 import UserDashboard from "./user/Dashboard";
 import UserProjectLayout from "./user/ProjectLayout";
@@ -75,6 +77,7 @@ const App = () => {
               <Route path="api-keys" element={<ApiKeysTab />} />
               <Route path="media" element={<TabPlaceholder title="Media" />} />
               <Route path="forms" element={<FormsTab />} />
+              <Route path="api" element={<ApiTesterTab />} />
               <Route
                 path="analytics"
                 element={<TabPlaceholder title="Analytics" />}
@@ -83,6 +86,10 @@ const App = () => {
             <Route
               path="projects/:projectId/collections/:collectionId"
               element={<CollectionDetail />}
+            />
+            <Route
+              path="projects/:projectId/collections/:collectionId/records/:recordId"
+              element={<RecordDetail />}
             />
             <Route
               path="projects/:projectId/forms/:formId"

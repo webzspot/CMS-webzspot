@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiFile, FiExternalLink, FiAlertTriangle } from "react-icons/fi";
+import { FiFile, FiExternalLink } from "react-icons/fi";
 import { formatCell, isFileField, mediaFor } from "../utils/recordFields";
 
 const sizeLabel = (bytes) => {
@@ -30,18 +30,8 @@ const RecordCell = ({ field, record, dataKey = "slug", size = "cell" }) => {
   const isImage =
     field.type === "IMAGE" || media.mimeType?.startsWith("image/");
 
-  if (media.size === 0) {
-    return (
-      <span
-        title="This upload stored 0 bytes"
-        className="inline-flex items-center gap-1.5 text-xs text-amber-700"
-      >
-        <FiAlertTriangle size={13} className="shrink-0" />
-        <span className="truncate">{media.originalName} (empty)</span>
-      </span>
-    );
-  }
-
+  // Whether a preview appears is decided by the URL loading, not by the
+  // stored size, which can be wrong while the object itself is fine.
   if (isImage && !imageFailed) {
     return (
       <a
@@ -56,8 +46,10 @@ const RecordCell = ({ field, record, dataKey = "slug", size = "cell" }) => {
           src={media.url}
           alt={media.originalName || field.name}
           onError={() => setImageFailed(true)}
-          className={`rounded border border-slate-200 object-cover ${
-            size === "detail" ? "max-h-40 max-w-full" : "h-10 w-10"
+          className={`rounded border border-slate-200 transition ${
+            size === "detail"
+              ? "max-h-80 max-w-full object-contain"
+              : "h-24 w-24 object-cover hover:opacity-90"
           }`}
         />
       </a>
