@@ -311,7 +311,7 @@ const ApiTesterTab = () => {
                   {selected.kind}
                 </span>
                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500">
-                  {selected.method} {selected.path}
+                  {selected.method} {selected.display || selected.path}
                 </span>
                 <CopyButton text={selected.url} label="URL" />
               </p>

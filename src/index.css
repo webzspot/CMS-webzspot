@@ -47,6 +47,13 @@
   --color-red-500: #ef4444;
   --color-red-600: #ef4444;
   --color-red-700: #dc2626;
+
+  /* Type tints: tell a collection from a form at a glance */
+  --color-sky-50: #0b2236;
+  --color-sky-600: #38bdf8;
+
+  --color-violet-50: #1e1633;
+  --color-violet-600: #a78bfa;
 }
 
 body {

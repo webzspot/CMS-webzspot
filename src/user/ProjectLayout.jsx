@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
-import { FiArrowLeft, FiDatabase, FiFileText } from "react-icons/fi";
+import {
+  FiArrowLeft,
+  FiDatabase,
+  FiFileText,
+  FiShoppingBag,
+} from "react-icons/fi";
 import { getMyProject, formsOf } from "../api/userApi";
 import { getErrorMessage } from "../api/axios";
 
-// Only the two areas a client user is allowed to work in. API keys, media and
-// analytics stay admin-only.
+// Only the areas a client user is allowed into. API keys, media, analytics
+// and payment setup stay admin-only; orders are read-only for both.
 const TABS = [
   { to: "collections", label: "Collections", icon: FiDatabase },
   { to: "forms", label: "Forms", icon: FiFileText },
+  { to: "orders", label: "Orders", icon: FiShoppingBag },
 ];
 
 const ProjectLayout = () => {
@@ -38,7 +44,7 @@ const ProjectLayout = () => {
                 {project?.name || "Project"}
               </h1>
               <p className="mt-1 truncate font-mono text-sm text-slate-400">
-                {project?.slug || projectId}
+                {project?.slug}
               </p>
               {project && (
                 <p className="mt-1 text-xs text-slate-500">

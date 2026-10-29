@@ -20,6 +20,8 @@ import { getErrorMessage, getErrorStatus } from "../api/axios";
 import { useAuth } from "../auth/authContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyEndpoint from "../components/CopyEndpoint";
+import UpgradeButton from "../components/UpgradeButton";
+import usePlanUsage, { isLimitReached } from "../hooks/usePlanUsage";
 import { publicCollection } from "../utils/publicApi";
 
 const emptyRow = () => ({ name: "", type: "TEXT", isRequired: false });
@@ -280,6 +282,8 @@ const CollectionsTab = () => {
   const [formFor, setFormFor] = useState(null); // {} = create, collection = edit
   const [deleteState, setDeleteState] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const { resources, reload: reloadUsage } = usePlanUsage();
+  const collectionsFull = isLimitReached(resources.collections);
 
   const loadCollections = (id) =>
     getCollections(id)
@@ -325,6 +329,7 @@ const CollectionsTab = () => {
       setDeleteState(null);
       setNotice({ type: "success", text: data.message || "Collection deleted" });
       loadCollections(projectId);
+      reloadUsage();
     } catch (err) {
       setDeleteState({ collection, error: getErrorMessage(err) });
     } finally {
@@ -339,12 +344,16 @@ const CollectionsTab = () => {
           Define custom schemas. Blogs, products, testimonials — anything your
           website needs.
         </p>
-        <button
-          onClick={() => setFormFor({})}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-        >
-          <FiPlus size={16} /> New collection
-        </button>
+        {collectionsFull ? (
+          <UpgradeButton resource={resources.collections} noun="collections" />
+        ) : (
+          <button
+            onClick={() => setFormFor({})}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+          >
+            <FiPlus size={16} /> New collection
+          </button>
+        )}
       </div>
 
       {notice && (

@@ -19,6 +19,23 @@ export const formatStorage = (value) => {
   return value >= 1024 ? `${(value / 1024).toFixed(0)} GB` : `${value} MB`;
 };
 
+// Byte counts arrive as strings because they can exceed a safe integer.
+// Scales all the way to TB so a large value never reads as "9000.00 GB".
+export const formatBytes = (value) => {
+  if (missing(value)) return "-";
+  const bytes = Number(value);
+  if (!bytes) return "0 KB";
+  const units = [
+    { size: 1024 ** 4, label: "TB" },
+    { size: 1024 ** 3, label: "GB" },
+    { size: 1024 ** 2, label: "MB" },
+    { size: 1024, label: "KB" },
+  ];
+  const unit = units.find((u) => bytes >= u.size) || units[units.length - 1];
+  const scaled = bytes / unit.size;
+  return `${Number.isInteger(scaled) ? scaled : scaled.toFixed(2)} ${unit.label}`;
+};
+
 // emailSupport comes back as a string ("Community"), but the subscription doc
 // describes a boolean, so handle both.
 export const formatSupport = (value) =>

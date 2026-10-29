@@ -24,6 +24,9 @@ import StatusBadge from "../components/StatusBadge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import RecordForm from "../components/RecordForm";
 import RecordCell from "../components/RecordCell";
+import CopyEndpoint from "../components/CopyEndpoint";
+import { getProject } from "../api/projectApi";
+import { publicCollection } from "../utils/publicApi";
 
 const CollectionDetail = () => {
   const { projectId, collectionId } = useParams();
@@ -39,6 +42,14 @@ const CollectionDetail = () => {
   const [formFor, setFormFor] = useState(null); // {} = create, record = edit
   const [deleteState, setDeleteState] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [project, setProject] = useState(null);
+
+  // The project slug is part of the public endpoint in the header
+  useEffect(() => {
+    getProject(projectId)
+      .then(setProject)
+      .catch(() => setProject(null));
+  }, [projectId]);
 
   const loadAll = (id) =>
     Promise.all([
@@ -122,9 +133,12 @@ const CollectionDetail = () => {
                   <StatusBadge status={collection.status} />
                 )}
               </div>
-              <p className="mt-1 truncate font-mono text-sm text-slate-400">
-                /api/v1/{collection?.slug || collectionId}
-              </p>
+              <div className="mt-1">
+                <CopyEndpoint
+                  endpoint={publicCollection(project?.slug, collection?.slug)}
+                  size="sm"
+                />
+              </div>
             </div>
 
             <div className="flex shrink-0 items-center gap-4">

@@ -2,18 +2,29 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft } from "react-icons/fi";
 import { getForm } from "../api/formApi";
+import { getProject } from "../api/projectApi";
 import SubmissionsPanel from "../components/SubmissionsPanel";
+import CopyEndpoint from "../components/CopyEndpoint";
+import { publicFormSubmit } from "../utils/publicApi";
 
 const FormSubmissions = () => {
   const { projectId, formId } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(null);
+  const [project, setProject] = useState(null);
 
   useEffect(() => {
     getForm(formId)
       .then(setForm)
       .catch(() => setForm(null));
   }, [formId]);
+
+  // The project slug is part of the public submit endpoint
+  useEffect(() => {
+    getProject(projectId)
+      .then(setProject)
+      .catch(() => setProject(null));
+  }, [projectId]);
 
   return (
     <div>
@@ -24,9 +35,12 @@ const FormSubmissions = () => {
               <h1 className="truncate text-2xl font-semibold text-slate-900">
                 {form?.name || "Form"} submissions
               </h1>
-              <p className="mt-1 truncate font-mono text-sm text-slate-400">
-                POST /api/v1/forms/{form?.slug || formId}/submit
-              </p>
+              <div className="mt-1">
+                <CopyEndpoint
+                  endpoint={publicFormSubmit(project?.slug, form?.slug)}
+                  size="sm"
+                />
+              </div>
             </div>
             <button
               onClick={() =>

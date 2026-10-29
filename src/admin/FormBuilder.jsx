@@ -226,7 +226,7 @@ const FormBuilder = () => {
                 {form?.status && <StatusBadge status={form.status} />}
               </div>
               <p className="mt-1 truncate font-mono text-sm text-slate-400">
-                {form?.slug || formId}
+                {form?.slug}
               </p>
             </div>
 

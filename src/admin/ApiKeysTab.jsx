@@ -22,6 +22,8 @@ import {
 import { getErrorMessage, getErrorStatus } from "../api/axios";
 import { formatDate } from "../utils/planFormat";
 import ConfirmDialog from "../components/ConfirmDialog";
+import UpgradeButton from "../components/UpgradeButton";
+import usePlanUsage, { isLimitReached } from "../hooks/usePlanUsage";
 
 // The backend owns subscription and plan limits, so its wording is kept except
 // for these two, which read better in plain language.
@@ -198,8 +200,16 @@ const ApiKeysTab = () => {
   const [newKey, setNewKey] = useState(null);
   const [confirm, setConfirm] = useState(null); // { key, mode: revoke|delete }
   const [busyId, setBusyId] = useState(null);
+  const { resources, reload: reloadUsage } = usePlanUsage();
+  const keysFull = isLimitReached(resources.apiKeys);
 
-  const loadKeys = (id) =>
+  // Creating, revoking, activating and deleting all move the key count
+  const loadKeys = (id) => {
+    reloadUsage();
+    return loadKeyList(id);
+  };
+
+  const loadKeyList = (id) =>
     getApiKeys(id)
       .then((data) => {
         setApiKeys(data);
@@ -209,7 +219,7 @@ const ApiKeysTab = () => {
       .finally(() => setLoading(false));
 
   useEffect(() => {
-    loadKeys(projectId);
+    loadKeyList(projectId);
   }, [projectId]);
 
   useEffect(() => {
@@ -265,12 +275,16 @@ const ApiKeysTab = () => {
         <p className="text-sm text-slate-500">
           Keys your applications use to read this project's published content.
         </p>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-        >
-          <FiPlus size={16} /> New API key
-        </button>
+        {keysFull ? (
+          <UpgradeButton resource={resources.apiKeys} noun="API keys" />
+        ) : (
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+          >
+            <FiPlus size={16} /> New API key
+          </button>
+        )}
       </div>
 
       {notice && (

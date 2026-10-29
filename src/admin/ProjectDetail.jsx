@@ -8,6 +8,8 @@ import {
   FiFileText,
   FiBarChart2,
   FiTerminal,
+  FiCreditCard,
+  FiShoppingBag,
 } from "react-icons/fi";
 import { getProject } from "../api/projectApi";
 import { getErrorMessage } from "../api/axios";
@@ -20,6 +22,8 @@ const TABS = [
   { to: "forms", label: "Forms", icon: FiFileText },
   { to: "analytics", label: "Analytics", icon: FiBarChart2 },
   { to: "api", label: "API", icon: FiTerminal },
+  { to: "payments", label: "Payments", icon: FiCreditCard },
+  { to: "orders", label: "Orders", icon: FiShoppingBag },
 ];
 
 const ProjectDetail = () => {
@@ -49,7 +53,7 @@ const ProjectDetail = () => {
                 {project?.name || "Project"}
               </h1>
               <p className="mt-1 truncate font-mono text-sm text-slate-400">
-                {project?.slug || projectId}
+                {project?.slug}
               </p>
               {project?._count && (
                 <p className="mt-1 text-xs text-slate-500">

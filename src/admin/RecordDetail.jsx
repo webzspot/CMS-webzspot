@@ -90,9 +90,9 @@ const RecordDetail = () => {
                   <StatusBadge status={collection.status} />
                 )}
               </div>
-              <p className="mt-1 truncate font-mono text-sm text-slate-400">
-                /api/v1/{collection?.slug || collectionId}/{recordId}
-              </p>
+              <div className="mt-1">
+                <CopyEndpoint endpoint={endpoint} size="sm" />
+              </div>
             </div>
 
             <div className="flex shrink-0 items-center gap-4">
@@ -135,15 +135,6 @@ const RecordDetail = () => {
             <button onClick={() => setNotice(null)}>
               <FiX size={16} />
             </button>
-          </div>
-        )}
-
-        {endpoint && (
-          <div className="mb-6 rounded-xl border border-slate-200 bg-white px-5 py-4">
-            <p className="mb-1.5 text-xs font-medium tracking-wider text-slate-400 uppercase">
-              API endpoint for this entry
-            </p>
-            <CopyEndpoint endpoint={endpoint} />
           </div>
         )}
 

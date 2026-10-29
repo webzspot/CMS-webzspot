@@ -12,6 +12,7 @@ import {
   FiCalendar,
 } from "react-icons/fi";
 import PageShell from "../components/PageShell";
+import BillingHistory from "./BillingHistory";
 import {
   getCurrentSubscription,
   getAvailablePlans,
@@ -880,6 +881,8 @@ const Billing = () => {
               </>
             )}
           </div>
+
+          <BillingHistory />
         </div>
       )}
 

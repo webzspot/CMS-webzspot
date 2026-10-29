@@ -23,6 +23,8 @@ import {
 import { getProjects } from "../api/projectApi";
 import { getErrorMessage, getErrorStatus } from "../api/axios";
 import { useAuth } from "../auth/authContext";
+import UpgradeButton from "../components/UpgradeButton";
+import usePlanUsage, { isLimitReached } from "../hooks/usePlanUsage";
 
 const inputClass =
   "w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
@@ -376,6 +378,8 @@ const ManageProjectsDialog = ({ user, projects, onClose, onChanged }) => {
 
 const Team = () => {
   const { user: admin } = useAuth();
+  const { resources, reload: reloadUsage } = usePlanUsage();
+  const teamFull = isLimitReached(resources.teamMembers);
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -412,12 +416,14 @@ const Team = () => {
   const refresh = () => {
     setLoading(true);
     loadAll(admin?.tenantId);
+    reloadUsage();
   };
 
   const handleSaved = (message) => {
     setFormFor(null);
     setNotice({ type: "success", text: message });
     loadAll(admin?.tenantId);
+    reloadUsage();
   };
 
   const handleDelete = async () => {
@@ -427,6 +433,7 @@ const Team = () => {
       setDeleteState(null);
       setNotice({ type: "success", text: data.message || "User deleted" });
       loadAll(admin?.tenantId);
+      reloadUsage();
     } catch (err) {
       setDeleteState((prev) => ({ ...prev, error: getErrorMessage(err) }));
     } finally {
@@ -451,12 +458,19 @@ const Team = () => {
           >
             <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
-          <button
-            onClick={() => setFormFor({})}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-          >
-            <FiPlus size={16} /> New user
-          </button>
+          {teamFull ? (
+            <UpgradeButton
+              resource={resources.teamMembers}
+              noun="team members"
+            />
+          ) : (
+            <button
+              onClick={() => setFormFor({})}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+            >
+              <FiPlus size={16} /> New user
+            </button>
+          )}
         </div>
       }
     >

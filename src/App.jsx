@@ -8,8 +8,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import ComingSoon from "./components/ComingSoon";
 import SuperAdminDashboard from "./superadmin/Dashboard";
 import Plan from "./superadmin/Plan";
+import Tenants from "./superadmin/Tenants";
+import TenantDetail from "./superadmin/TenantDetail";
 import AdminDashboard from "./admin/Dashboard";
 import Billing from "./admin/Billing";
+import PaymentGateway from "./admin/PaymentGateway";
+import OrdersTab from "./admin/OrdersTab";
 import Projects from "./admin/Projects";
 import ProjectDetail from "./admin/ProjectDetail";
 import CollectionsTab from "./admin/CollectionsTab";
@@ -52,7 +56,8 @@ const App = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<SuperAdminDashboard />} />
             <Route path="plans" element={<Plan />} />
-            <Route path="tenants" element={<ComingSoon title="Tenants" />} />
+            <Route path="tenants" element={<Tenants />} />
+            <Route path="tenants/:tenantId" element={<TenantDetail />} />
             <Route path="users" element={<ComingSoon title="Users" />} />
             <Route path="settings" element={<ComingSoon title="Settings" />} />
           </Route>
@@ -78,6 +83,8 @@ const App = () => {
               <Route path="media" element={<TabPlaceholder title="Media" />} />
               <Route path="forms" element={<FormsTab />} />
               <Route path="api" element={<ApiTesterTab />} />
+              <Route path="payments" element={<PaymentGateway />} />
+              <Route path="orders" element={<OrdersTab />} />
               <Route
                 path="analytics"
                 element={<TabPlaceholder title="Analytics" />}
@@ -120,6 +127,8 @@ const App = () => {
               <Route index element={<Navigate to="collections" replace />} />
               <Route path="collections" element={<UserCollectionsTab />} />
               <Route path="forms" element={<UserFormsTab />} />
+              {/* Same tab and API as the admin side */}
+              <Route path="orders" element={<OrdersTab />} />
             </Route>
             <Route
               path="collections/:collectionId"

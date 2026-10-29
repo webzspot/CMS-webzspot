@@ -26,11 +26,14 @@ export const publicCollection = (projectSlug, collectionSlug) => {
   };
 };
 
+// `display` is what goes on screen: database ids are swapped for a placeholder
+// so they are never shown. `url` keeps the real id and is what gets copied.
 export const publicRecord = (projectSlug, collectionSlug, recordId) => {
   if (!projectSlug || !collectionSlug || !recordId) return null;
   return {
     method: "GET",
     path: publicPath(`/${projectSlug}/${collectionSlug}/${recordId}`),
+    display: publicPath(`/${projectSlug}/${collectionSlug}/{recordId}`),
     url: `${origin}/public/${projectSlug}/${collectionSlug}/${recordId}`,
   };
 };

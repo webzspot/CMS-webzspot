@@ -20,6 +20,8 @@ import {
 } from "../api/projectApi";
 import { getErrorMessage, getErrorStatus } from "../api/axios";
 import ConfirmDialog from "../components/ConfirmDialog";
+import UpgradeButton from "../components/UpgradeButton";
+import usePlanUsage, { isLimitReached } from "../hooks/usePlanUsage";
 
 // The backend owns project limits and subscription checks, so its message is
 // shown as-is apart from these two, which read better in plain language.
@@ -159,6 +161,8 @@ const Projects = () => {
   const [deleteState, setDeleteState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const { resources, reload: reloadUsage } = usePlanUsage();
+  const projectsFull = isLimitReached(resources.projects);
 
   const loadProjects = () =>
     getProjects()
@@ -199,6 +203,7 @@ const Projects = () => {
       setDeleteState(null);
       setNotice(data.message || "Project deleted successfully");
       refresh();
+      reloadUsage();
     } catch (err) {
       setDeleteState((prev) => ({ ...prev, error: getErrorMessage(err) }));
     } finally {
@@ -223,12 +228,16 @@ const Projects = () => {
           >
             <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
-          <button
-            onClick={() => setFormFor({})}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-          >
-            <FiPlus size={16} /> New project
-          </button>
+          {projectsFull ? (
+            <UpgradeButton resource={resources.projects} noun="projects" />
+          ) : (
+            <button
+              onClick={() => setFormFor({})}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+            >
+              <FiPlus size={16} /> New project
+            </button>
+          )}
         </div>
       }
     >
